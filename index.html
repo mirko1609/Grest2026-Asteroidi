@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Asteroidi — Grest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;1,500&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="stile.css">
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+
+<div class="sound-toggle" id="soundToggle">
+  <span class="dot"></span>
+  <span id="soundLabel">Attiva l'audio</span>
+</div>
+<div class="now-playing" id="nowPlaying"></div>
+
+<!-- ============ AUDIO ============ -->
+<!--
+  ISTRUZIONI AUDIO
+  Per motivi di copyright non posso includere i brani veri.
+  Metti in una cartella "audio" accanto a questo file due mp3 che possiedi legalmente:
+    audio/evergreen.mp3   -> Evergreen, Richy Mitch & the Coal Miners (suona durante la galleria)
+    audio/fixyou.mp3      -> Fix You, Coldplay (suona durante la lettera finale)
+  Il crossfade tra i due parte automaticamente quando si scorre dalla galleria alla sezione finale.
+  Se i file non sono presenti i controlli restano semplicemente muti, senza errori bloccanti.
+-->
+<audio id="trackGallery" src="audio/Evergreen.mp3" loop preload="none"></audio>
+<audio id="trackLetter" src="audio/Fix You.mp3" loop preload="none"></audio>
+
+<!-- ============ GATE AUDIO (primo schermo, obbligatorio) ============ -->
+<div class="audio-gate" id="audioGate">
+  <img src="img/piccolo principe.svg" alt="piccolo principe" class="svg-inizio">
+  <span class="gate-eyebrow">Squadra Asteroidi</span>
+  <h2>Alza il volume prima di cominciare...</h2>
+  <button class="gate-btn" id="gateBtn">🔊 Attiva l'audio e inizia</button>
+</div>
+
+<!-- HERO -->
+<div class="hero">
+  <span class="eyebrow">Grest · Squadra Asteroidi</span>
+  <h1>ASTEROIDI</h1>
+  <div class="sub">"Ogni asteroide ha la sua stella, ogni bambino il suo posto nel cielo."</div>
+  <img src="img/piccolo principe.svg" alt="piccolo principe" class="svg">
+  <div class="scroll-hint">scorri ↓</div>
+</div>
+
+<!-- ============ GALLERIA DEI RICORDI ============ -->
+<section id="galleria">
+  <span class="section-label">Cinque settimane, un pianeta solo</span>
+  <h2 class="section-title">La galleria dei ricordi</h2>
+  <p class="section-intro">La squadra che siamo stati, la famiglia che siamo diventati...</p>
+
+  <div class="gallery-grid">
+    <!-- Sostituisci ogni src con il percorso della tua foto/video reale (es. images/foto1.jpg) -->
+    <div class="tile big" data-slot="1">
+      <img src="img/sofigrest.jpeg" alt="Foto 1">
+    </div>
+    <div class="tile wide" data-slot="2">
+      <img src="img/mv.jpeg" alt="Foto 2">
+    </div>
+    <div class="tile small" data-slot="3">
+      <img src="img/aleludo.jpeg" alt="Foto 3">
+    </div>
+    <div class="tile small video-tile" data-slot="4">
+      <video src="video/arramp.mp4" muted autoplay loop playsinline></video>
+    </div>
+    <div class="tile tall" data-slot="5">
+      <img src="img/nero.jpeg" alt="Foto 5">
+    </div>
+    <div class="tile wide" data-slot="6">
+      <img src="img/perla.jpeg" alt="Foto 6">
+    </div>
+    <div class="tile small" data-slot="7">
+      <img src="img/mare.jpeg" alt="Foto 7">
+    </div>
+    <div class="tile small" data-slot="8">
+      <img src="img/aleanimato.jpeg" alt="Foto 8">
+    </div>
+    <div class="tile wide video-tile" data-slot="9">
+      <video src="video/bachata.mp4" muted autoplay loop playsinline></video>
+    </div>
+    <div class="tile small" data-slot="10">
+      <img src="img/Gioco.jpeg" alt="Foto 10">
+    </div>
+    <div class="tile small" data-slot="11">
+      <img src="img/avventura.jpeg" alt="Foto 11">
+    </div>
+    <div class="tile wide" data-slot="12">
+      <img src="img/ioeale.jpeg" alt="Foto 12">
+    </div>
+    <div class="tile tall" data-slot="13">
+      <img src="img/ioseduto.jpeg" alt="Foto 13">
+    </div>
+    <div class="tile small" data-slot="14">
+      <img src="img/alecoper.jpeg" alt="Foto 14">
+    </div>
+    <div class="tile small video-tile" data-slot="15">
+      <video src="video/parata.mp4" muted autoplay loop playsinline></video>
+    </div>
+    <div class="tile wide" data-slot="16">
+      <img src="img/alessio.jpeg" alt="Foto 16">
+    </div>
+    <div class="tile small" data-slot="17">
+      <img src="img/artandre.jpeg" alt="Foto 17">
+    </div>
+    <div class="tile big" data-slot="18">
+      <video src="video/PARATAAWQUAD.mp4" muted autoplay loop playsinline></video>
+    </div>
+  </div>
+</section>
+
+<!-- zona di transizione: da qui parte il crossfade audio -->
+<div class="transizione" id="transizione">
+  <div class="linea"></div>
+</div>
+
+<!-- ============ LETTERA + FOTO SQUADRA ============ -->
+<section id="lettera-wrap">
+  <span class="section-label">Prima di salutarci</span>
+  <div class="lettera">
+    <p>Cari Asteroidi,</p>
+    <p>cinque settimane fa eravamo solo un nome e un colore, il blu — quello delle sere passate a guardare le stelle, quello del cielo che il Piccolo Principe attraversava saltando da un pianeta all'altro in cerca di qualcosa di vero.</p>
+    <p>Oggi non siete più solo una squadra. Siete le risate durante i giochi a squadre, le urla durante le sfide, gli abbracci quando eravate stanchi ma non volevate ancora tornare a casa. Il secondo posto in classifica non racconta niente di tutto questo. Noi lo sappiamo: quello che avete costruito insieme vale più di qualsiasi podio. Oggi è tutto finito, è vero, ma ci portiamo a casa un'esperienza unica che difficilmente dimenticheremo, ci portiamo a casa i nostri sorrisi, le nostre risate e i nostri pianti all'orlo dello svenimento sotto al sole... Oggi, siamo più di una semplice squadra, siamo una famiglia, perchè insieme siamo cresciuti e abbiamo imparato a spalleggiarci a vicenda, nel bene e nel male.</p>
+    <p>E adesso è il momento di fermare il tempo un attimo, prima che i ricordi si confondano con l'inizio della scuola. Volevamo che restasse qualcosa, da riguardare tra qualche anno, per ricordarvi chi siete stati quest'estate.</p>
+    <p class="firma">— i vostri animatori</p>
+  </div>
+
+  <div class="foto-squadra">
+    <div class="frame">
+      <!-- Sostituisci src con il percorso della foto di gruppo finale -->
+      <img src="img/squadra.jpeg" alt="Foto di squadra Asteroidi">
+    </div>
+    <div class="cap">Squadra Asteroidi — Grest 2026</div>
+  </div>
+</section>
+
+<div class="quote-block">
+  <blockquote>«L'essenziale è invisibile agli occhi.»</blockquote>
+  <cite>Antoine de Saint-Exupéry, Il Piccolo Principe</cite>
+</div>
+
+<footer>
+  <div class="grazie">Grazie per questa estate, piccoli Asteroidi.</div>
+  <div>Grest 2026 · Asteroidi · 🔵</div>
+</footer>
+
+<script src="script.js"></script>
+
+</body>
+</html>
