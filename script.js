@@ -6,7 +6,6 @@ function resize(){
   w = canvas.width = window.innerWidth;
   h = canvas.height = document.body.scrollHeight;
 }
-window.addEventListener('resize', ()=>{ resize(); initStars(); });
 
 function initStars(){
   stars = [];
@@ -31,6 +30,31 @@ function initStars(){
     });
   }
 }
+
+// Su mobile la barra degli indirizzi che appare/scompare durante lo scroll
+// scatena molti eventi "resize": se ogni volta rigenerassimo le stelle in
+// posizioni nuove e casuali si vedrebbe un fastidioso "salto". Qui invece
+// ridimensioniamo il canvas e riposizioniamo le stelle già esistenti in
+// proporzione, senza mai rigenerarle da zero dopo il primo avvio.
+let resizeTimeout;
+function handleResize(){
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(()=>{
+    const oldW = w, oldH = h;
+    resize();
+    if(oldW && oldH && stars.length){
+      const scaleX = w / oldW;
+      const scaleY = h / oldH;
+      stars.forEach(s=>{ s.x *= scaleX; s.y *= scaleY; });
+      drifters.forEach(d=>{ d.x *= scaleX; d.y *= scaleY; });
+    } else {
+      initStars();
+    }
+    applyCrossfade();
+  }, 200);
+}
+window.addEventListener('resize', handleResize);
+window.addEventListener('orientationchange', handleResize);
 
 let t = 0;
 function animate(){
@@ -60,7 +84,19 @@ function animate(){
 resize();
 initStars();
 animate();
-setTimeout(()=>{ resize(); initStars(); }, 300);
+
+// una volta caricate tutte le immagini/video la pagina può essere più alta:
+// ricalcoliamo UNA sola volta, riposizionando le stelle esistenti (mai a caso)
+window.addEventListener('load', ()=>{
+  const oldW = w, oldH = h;
+  resize();
+  if(oldW && oldH && stars.length){
+    const scaleX = w / oldW;
+    const scaleY = h / oldH;
+    stars.forEach(s=>{ s.x *= scaleX; s.y *= scaleY; });
+    drifters.forEach(d=>{ d.x *= scaleX; d.y *= scaleY; });
+  }
+});
 
 // ---------------- Audio crossfade ----------------
 const trackGallery = document.getElementById('trackGallery');
@@ -81,11 +117,37 @@ gateBtn.addEventListener('click', async ()=>{
   document.body.style.overflow = '';
 });
 
-trackGallery.volume = 0;
-trackLetter.volume = 0;
-
 let audioEnabled = false;
 let userMaxVolume = 0.55; // volume massimo di ciascuna traccia
+
+// Su iOS/Safari la proprietà .volume di <audio> viene IGNORATA (resta sempre
+// al massimo): è una limitazione nota del sistema. L'unico modo per avere un
+// fade reale su tutti i dispositivi è instradare l'audio nella Web Audio API
+// e controllare il volume con dei GainNode, che non hanno questa limitazione.
+let audioCtx = null;
+let gainGallery = null;
+let gainLetter = null;
+let audioGraphReady = false;
+
+function setupAudioGraph(){
+  if(audioGraphReady) return;
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  audioCtx = new AudioContextClass();
+
+  const sourceGallery = audioCtx.createMediaElementSource(trackGallery);
+  const sourceLetter = audioCtx.createMediaElementSource(trackLetter);
+
+  gainGallery = audioCtx.createGain();
+  gainLetter = audioCtx.createGain();
+
+  sourceGallery.connect(gainGallery).connect(audioCtx.destination);
+  sourceLetter.connect(gainLetter).connect(audioCtx.destination);
+
+  gainGallery.gain.value = 0;
+  gainLetter.gain.value = 0;
+
+  audioGraphReady = true;
+}
 
 function updateNowPlaying(text){
   if(!text){
@@ -100,12 +162,31 @@ async function enableAudio(){
   audioEnabled = true;
   soundToggle.classList.add('playing');
   soundLabel.textContent = 'Audio attivo';
+
+  // il grafo Web Audio va creato/ripreso dentro un gesto utente reale (il click)
+  setupAudioGraph();
+  if(audioCtx.state === 'suspended'){
+    try{ await audioCtx.resume(); }catch(e){ console.warn('Impossibile riprendere AudioContext', e); }
+  }
+
   try{
     trackGallery.currentTime = 0;
     await trackGallery.play();
   }catch(e){
     // i file mp3 potrebbero non essere ancora stati aggiunti dall'utente
     console.warn('Audio non disponibile: aggiungi i file mp3 nella cartella /audio', e);
+  }
+  // IMPORTANTE per mobile: molti browser (Safari iOS in particolare) permettono
+  // il play() automatico via JS solo se l'elemento è già stato "sbloccato" da
+  // un gesto reale dell'utente. Qui, nello stesso click, avviamo e mettiamo
+  // subito in pausa anche la seconda traccia: da questo momento in poi potrà
+  // essere riavviata più avanti dallo scroll senza essere bloccata.
+  try{
+    await trackLetter.play();
+    trackLetter.pause();
+    trackLetter.currentTime = 0;
+  }catch(e){
+    console.warn('Sblocco traccia Fix You non riuscito', e);
   }
   applyCrossfade();
 }
@@ -116,6 +197,8 @@ function disableAudio(){
   soundLabel.textContent = "Attiva l'audio";
   trackGallery.pause();
   trackLetter.pause();
+  if(gainGallery) gainGallery.gain.value = 0;
+  if(gainLetter) gainLetter.gain.value = 0;
   updateNowPlaying(null);
 }
 
@@ -125,7 +208,7 @@ soundToggle.addEventListener('click', ()=>{
 
 // calcola il progresso di crossfade in base alla posizione della zona di transizione
 function applyCrossfade(){
-  if(!audioEnabled) return;
+  if(!audioEnabled || !audioGraphReady) return;
 
   const rect = transizione.getBoundingClientRect();
   const vh = window.innerHeight;
@@ -149,13 +232,13 @@ function applyCrossfade(){
       trackGallery.currentTime = 0;
       trackGallery.play().catch(()=>{});
     }
-    trackGallery.volume = (1 - progress) * userMaxVolume;
+    gainGallery.gain.value = (1 - progress) * userMaxVolume;
   } else {
     if(!trackGallery.paused){
       trackGallery.pause();
       trackGallery.currentTime = 0;
     }
-    trackGallery.volume = 0;
+    gainGallery.gain.value = 0;
   }
 
   // --- traccia lettera: parte solo quando si entra nella zona di transizione ---
@@ -164,13 +247,13 @@ function applyCrossfade(){
       trackLetter.currentTime = 0;
       trackLetter.play().catch(()=>{});
     }
-    trackLetter.volume = progress * userMaxVolume;
+    gainLetter.gain.value = progress * userMaxVolume;
   } else {
     if(!trackLetter.paused){
       trackLetter.pause();
       trackLetter.currentTime = 0;
     }
-    trackLetter.volume = 0;
+    gainLetter.gain.value = 0;
   }
 
   if(progress < 0.5){
