@@ -1,3 +1,53 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+
+// -------------------------------------------------------------
+// CIELO CONDIVISO (opzionale) — perché tutti vedano le stelle di tutti
+// -------------------------------------------------------------
+// 1. Vai su https://console.firebase.google.com e crea un progetto gratuito
+//    (bastano un paio di minuti, non serve carta di credito).
+// 2. Nel menu a sinistra apri "Realtime Database" -> "Crea database" -> scegli
+//    modalità TEST (permette lettura/scrittura pubblica, va bene per questo uso).
+// 3. Nelle impostazioni del progetto (icona ingranaggio in alto a sinistra ->
+//    "Impostazioni progetto" -> scorri fino a "Le tue app" -> aggiungi un'app Web)
+//    copia l'oggetto "firebaseConfig" che ti viene mostrato e incollalo qui sotto,
+//    al posto dei campi vuoti.
+// Se lasci firebaseConfig vuoto, il sito funziona comunque: ogni stella resta
+// visibile solo sul dispositivo di chi l'ha accesa, come prima.
+const firebaseConfig = {
+  apiKey: "AIzaSyBrEqwdwrEQfrU-0XHOIDLAOtZuCGjKbTU",
+  databaseURL: "https://asteroidi-93f29-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "asteroidi-93f29"
+};
+
+window.stelleCloud = { attivo: false };
+
+if(firebaseConfig.apiKey && firebaseConfig.databaseURL){
+  try{
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const stelleRef = ref(db, 'stelle');
+
+    window.stelleCloud = {
+      attivo: true,
+      aggiungi(nome){
+        push(stelleRef, { nome, quando: Date.now() });
+      },
+      ascolta(callback){
+        onValue(stelleRef, (snapshot)=>{
+          const dati = snapshot.val() || {};
+          const elenco = Object.values(dati)
+            .sort((a,b)=> (a.quando||0) - (b.quando||0))
+            .map(v=> v.nome);
+          callback(elenco);
+        });
+      }
+    };
+  }catch(e){
+    console.warn('Configurazione Firebase non valida, uso il salvataggio locale', e);
+  }
+}
+
 const canvas = document.getElementById('stars');
 const ctx = canvas.getContext('2d');
 let w, h, stars = [], drifters = [];
@@ -78,11 +128,73 @@ function animate(){
     ctx.arc(d.x, d.y, d.r, 0, Math.PI*2);
     ctx.fill();
   }
+ctx.lineWidth=2;
+
+for(let i=shootingStars.length-1;i>=0;i--){
+
+    const s=shootingStars[i];
+
+    s.x+=s.vx;
+
+    s.y+=s.vy;
+
+    s.life++;
+
+    ctx.strokeStyle="rgba(255,255,255,"+(1-s.life/s.maxLife)+")";
+
+    ctx.beginPath();
+
+    ctx.moveTo(s.x,s.y);
+
+    ctx.lineTo(s.x-45,s.y-18);
+
+    ctx.stroke();
+
+    if(s.life>s.maxLife){
+
+        shootingStars.splice(i,1);
+
+    }
+
+}
+
   requestAnimationFrame(animate);
 }
 
 resize();
 initStars();
+// ======================================================
+// STELLE CADENTI
+// ======================================================
+
+let shootingStars=[];
+
+function spawnShootingStar(){
+
+    shootingStars.push({
+
+        x:Math.random()*w*0.8,
+
+        y:Math.random()*h*0.4,
+
+        vx:10+Math.random()*4,
+
+        vy:4+Math.random()*2,
+
+        life:0,
+
+        maxLife:70
+
+    });
+
+}
+
+setInterval(()=>{
+
+    spawnShootingStar();
+
+},18000);
+
 animate();
 
 // una volta caricate tutte le immagini/video la pagina può essere più alta:
@@ -96,6 +208,9 @@ window.addEventListener('load', ()=>{
     stars.forEach(s=>{ s.x *= scaleX; s.y *= scaleY; });
     drifters.forEach(d=>{ d.x *= scaleX; d.y *= scaleY; });
   }
+  // la sezione del "silenzio" e le stelle-nome cambiano l'altezza della pagina
+  // dopo essere state costruite: ricalcoliamo di nuovo a costellazione pronta
+  posizionaCostellazione();
 });
 
 // ---------------- Audio crossfade ----------------
@@ -226,13 +341,27 @@ function applyCrossfade(){
     progress = Math.min(1, Math.max(0, traveled / total));
   }
 
-  // --- traccia galleria: resta in play finché non siamo arrivati in fondo del tutto ---
-  if(progress < 1){
+  // La galleria si spegne presto, appena si entra nella zona del silenzio;
+  // Fix You si accende solo verso la fine, quando ormai si intravede la lettera.
+  // Nel mezzo, per un lungo tratto (mentre appaiono la frase e i nomi),
+  // non suona nessuna delle due: è la pausa voluta.
+  const finePrima = 0.18;     // entro il 18% del percorso la galleria è già a zero
+  const inizioSeconda = 0.25; // solo dal 75% in poi comincia a salire Fix You
+
+  const volumeGalleria = progress <= finePrima
+    ? (1 - progress / finePrima) * userMaxVolume
+    : 0;
+
+  const volumeLettera = progress >= inizioSeconda
+    ? ((progress - inizioSeconda) / (1 - inizioSeconda)) * userMaxVolume
+    : 0;
+
+  if(volumeGalleria > 0){
     if(trackGallery.paused){
       trackGallery.currentTime = 0;
       trackGallery.play().catch(()=>{});
     }
-    gainGallery.gain.value = (1 - progress) * userMaxVolume;
+    gainGallery.gain.value = volumeGalleria;
   } else {
     if(!trackGallery.paused){
       trackGallery.pause();
@@ -241,13 +370,12 @@ function applyCrossfade(){
     gainGallery.gain.value = 0;
   }
 
-  // --- traccia lettera: parte solo quando si entra nella zona di transizione ---
-  if(progress > 0){
+  if(volumeLettera > 0){
     if(trackLetter.paused){
       trackLetter.currentTime = 0;
       trackLetter.play().catch(()=>{});
     }
-    gainLetter.gain.value = progress * userMaxVolume;
+    gainLetter.gain.value = volumeLettera;
   } else {
     if(!trackLetter.paused){
       trackLetter.pause();
@@ -255,13 +383,214 @@ function applyCrossfade(){
     }
     gainLetter.gain.value = 0;
   }
-
-  if(progress < 0.5){
-    updateNowPlaying('');
-  } else {
-    updateNowPlaying('');
-  }
 }
 
 window.addEventListener('scroll', applyCrossfade, {passive:true});
 window.addEventListener('resize', applyCrossfade);
+
+// ======================================================
+// ANIMAZIONE GALLERIA
+// ======================================================
+
+const observer=new IntersectionObserver(entries=>{
+
+    entries.forEach(entry=>{
+
+        if(entry.isIntersecting){
+
+            entry.target.classList.add("visible");
+
+        }
+
+    });
+
+},{
+    threshold:.15
+});
+
+document.querySelectorAll(".tile").forEach(tile=>{
+
+    observer.observe(tile);
+
+});
+
+// ======================================================
+// 1) IL SILENZIO — testo che respira + costellazione dei nomi
+// ======================================================
+
+// Frase che appare parola per parola. Le parole tra ** ** vengono
+// evidenziate in bianco (classe "forte"): usale per le 2-3 parole
+// che vuoi che pesino di più.
+const fraseRespiro = "Cinque settimane fa non vi conoscevate. **Adesso siete una famiglia.** Fermatevi un secondo, prima di continuare a leggere.";
+
+// -------------------------------------------------------------
+// SOSTITUISCI QUESTO ELENCO con i nomi veri dei bambini della squadra.
+// Ogni nome diventerà una stella che si accende nel cielo, in ordine.
+// -------------------------------------------------------------
+const nomiAsteroidi = [
+"Chiara", "Alessio", "Carlotta", "Matteo", "Mariavittoria", "Elena",
+"Perla", "Alessandro", "Loris", "Filippo", "Marta", "Giorgia",
+"Sofia", "Beatrice", "Giada", "Roberta", "Alessia", "Matilde", 
+"Aurora", "Giada", "Francesco", "Vincenzo", "Anthony", "Edward",
+"Gabriele", "Arturo", "Simone"
+];
+
+
+function costruisciRespiro(){
+  const contenitore = document.getElementById('respiroTesto');
+  if(!contenitore) return;
+  const parti = fraseRespiro.split(' ');
+  contenitore.innerHTML = parti.map(parola=>{
+    const forte = parola.includes('**');
+    const pulita = parola.replace(/\*\*/g,'');
+    return `<span class="parola${forte ? ' forte' : ''}">${pulita}</span>`;
+  }).join(' ');
+}
+
+function costruisciCostellazione(){
+  const contenitore = document.getElementById('costellazioneNomi');
+  if(!contenitore) return;
+  contenitore.innerHTML = '';
+  // posizioni sparse ma leggibili, calcolate una volta sola
+  nomiAsteroidi.forEach((nome, i)=>{
+    const el = document.createElement('div');
+    el.className = 'stella-nome';
+    const colonna = i % 4;
+    const riga = Math.floor(i / 4);
+    const jitterX = (Math.random()-0.5)*8;
+    const jitterY = (Math.random()-0.5)*8;
+    el.style.left = `calc(${(colonna/3)*82 + 5 + jitterX}% )`;
+    el.style.top = `calc(${(riga/3)*82 + jitterY}% )`;
+    el.innerHTML = `<span class="punto" style="animation-delay:${(i*0.3).toFixed(1)}s"></span><span class="nome">${nome}</span>`;
+    contenitore.appendChild(el);
+  });
+}
+
+function posizionaCostellazione(){
+  // ricostruisce (senza duplicare) dopo eventuali resize importanti,
+  // mantenendo le classi "mostra" già assegnate
+  const contenitore = document.getElementById('costellazioneNomi');
+  if(!contenitore || contenitore.children.length) return;
+  costruisciCostellazione();
+}
+
+costruisciRespiro();
+costruisciCostellazione();
+
+// rivela le parole una a una quando la sezione del silenzio entra in vista,
+// poi accende le stelle-nome una dopo l'altra, poi la chiusura
+let respiroAvviato = false;
+const respiroObserver = new IntersectionObserver((entries)=>{
+  entries.forEach(entry=>{
+    if(entry.isIntersecting && !respiroAvviato){
+      respiroAvviato = true;
+      avviaSequenzaRespiro();
+    }
+  });
+}, {threshold:0.35});
+
+const sezioneSilenzio = document.getElementById('transizione');
+if(sezioneSilenzio) respiroObserver.observe(sezioneSilenzio);
+
+function avviaSequenzaRespiro(){
+  const parole = document.querySelectorAll('#respiroTesto .parola');
+  parole.forEach((el, i)=>{
+    setTimeout(()=> el.classList.add('mostra'), 260 * i);
+  });
+
+  const ritardoStelle = 260 * parole.length + 500;
+  const stelleEl = document.querySelectorAll('#costellazioneNomi .stella-nome');
+  stelleEl.forEach((el, i)=>{
+    setTimeout(()=> el.classList.add('mostra'), ritardoStelle + 220 * i);
+  });
+
+  const chiusura = document.getElementById('respiroChiusura');
+  if(chiusura){
+    const ritardoChiusura = ritardoStelle + 220 * stelleEl.length + 600;
+    setTimeout(()=> chiusura.classList.add('mostra'), ritardoChiusura);
+  }
+}
+
+// ======================================================
+// 3) ACCENDI LA TUA STELLA — gesto finale, condiviso o locale
+// ======================================================
+
+const CHIAVE_STELLE = 'asteroidi_grest2026_stelle'; // usata solo come ripiego locale
+
+function leggiStelleSalvate(){
+  try{
+    const dati = localStorage.getItem(CHIAVE_STELLE);
+    return dati ? JSON.parse(dati) : [];
+  }catch(e){
+    return [];
+  }
+}
+
+function salvaStelleLocali(elenco){
+  try{
+    localStorage.setItem(CHIAVE_STELLE, JSON.stringify(elenco));
+  }catch(e){
+    console.warn('Impossibile salvare la stella su questo dispositivo', e);
+  }
+}
+
+function escapeHTML(testo){
+  const div = document.createElement('div');
+  div.textContent = testo;
+  return div.innerHTML;
+}
+
+function disegnaStelle(elenco){
+  const cielo = document.getElementById('cieloStelle');
+  if(!cielo) return;
+  if(!elenco.length){
+    cielo.innerHTML = '<span class="cielo-vuoto">Non c\'è ancora nessuna stella qui. Sii il primo ad accenderla.</span>';
+    return;
+  }
+  cielo.innerHTML = elenco.map(nome=>`
+    <span class="stella-accesa"><span class="puntino"></span>${escapeHTML(nome)}</span>
+  `).join('');
+}
+
+function inizializzaAccendiStella(){
+  const input = document.getElementById('stellaInput');
+  const btn = document.getElementById('stellaBtn');
+  const cielo = document.getElementById('cieloStelle');
+  if(!input || !btn || !cielo) return;
+
+  const cloudAttivo = window.stelleCloud && window.stelleCloud.attivo;
+
+  if(cloudAttivo){
+    // modalità condivisa: tutti i visitatori vedono le stelle di tutti,
+    // in tempo reale, tramite Firebase Realtime Database
+    window.stelleCloud.ascolta((elenco)=> disegnaStelle(elenco));
+  } else {
+    // ripiego locale: usato solo se Firebase non è configurato
+    disegnaStelle(leggiStelleSalvate());
+  }
+
+  function accendi(){
+    const nome = input.value.trim();
+    if(!nome) return;
+    const nomePulito = nome.slice(0,30);
+
+    if(cloudAttivo){
+      window.stelleCloud.aggiungi(nomePulito);
+      // non serve richiamare disegnaStelle qui: arriva già dall'ascolto in tempo reale
+    } else {
+      const elenco = leggiStelleSalvate();
+      elenco.push(nomePulito);
+      salvaStelleLocali(elenco);
+      disegnaStelle(elenco);
+    }
+    input.value = '';
+    input.focus();
+  }
+
+  btn.addEventListener('click', accendi);
+  input.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter') accendi();
+  });
+}
+
+inizializzaAccendiStella();

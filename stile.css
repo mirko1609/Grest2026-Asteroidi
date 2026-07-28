@@ -306,19 +306,109 @@
     .tile.small{grid-column:auto;grid-row:auto;}
   }
 
-  /* ---------- TRANSIZIONE ---------- */
+  /* ---------- TRANSIZIONE / IL SILENZIO ---------- */
   .transizione{
-    height:40vh;
+    min-height:170vh;
     position:relative;
     display:flex;
+    flex-direction:column;
     align-items:center;
     justify-content:center;
     z-index:1;
+    padding:6rem 1.5rem;
+    overflow:hidden;
+    background:radial-gradient(ellipse at 50% 40%, rgba(27,45,102,0.35) 0%, rgba(11,19,48,0) 60%);
   }
   .transizione .linea{
     width:1px;
-    height:100%;
+    height:22vh;
     background:linear-gradient(180deg, rgba(170,184,232,0) 0%, rgba(170,184,232,0.4) 50%, rgba(170,184,232,0) 100%);
+    margin-bottom:3.5rem;
+  }
+
+  .respiro-testo{
+    max-width:640px;
+    text-align:center;
+    font-family:'Fraunces',serif;
+    font-style:italic;
+    font-weight:500;
+    font-size:clamp(1.3rem,3.6vw,2.1rem);
+    line-height:1.7;
+    color:var(--lavender);
+  }
+  .respiro-testo .parola{
+    display:inline-block;
+    opacity:0;
+    filter:blur(4px);
+    transform:translateY(10px);
+    transition:opacity 1.1s ease, filter 1.1s ease, transform 1.1s ease;
+  }
+  .respiro-testo .parola.mostra{
+    opacity:1;
+    filter:blur(0);
+    transform:translateY(0);
+  }
+  .respiro-testo .parola.forte{
+    color:var(--white);
+    font-weight:600;
+    font-style:normal;
+  }
+
+  .costellazione-nomi{
+    position:relative;
+    width:100%;
+    max-width:900px;
+    height:38vh;
+    margin-top:4rem;
+  }
+  .stella-nome{
+    position:absolute;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:0.4rem;
+    opacity:0;
+    transform:scale(0.6);
+    transition:opacity 1.4s ease, transform 1.4s ease;
+  }
+  .stella-nome.mostra{
+    opacity:1;
+    transform:scale(1);
+  }
+  .stella-nome .punto{
+    width:6px;height:6px;border-radius:50%;
+    background:var(--gold);
+    box-shadow:0 0 6px 1px rgba(242,196,109,0.7);
+    animation:tremola 3.2s ease-in-out infinite;
+  }
+  .stella-nome .nome{
+    font-family:'Fraunces',serif;
+    font-style:italic;
+    font-size:0.85rem;
+    color:var(--cream);
+    opacity:0.85;
+    white-space:nowrap;
+  }
+  @keyframes tremola{
+    0%,100%{opacity:1;}
+    50%{opacity:0.45;}
+  }
+
+  .respiro-chiusura{
+    margin-top:4rem;
+    font-family:'Fraunces',serif;
+    font-style:italic;
+    font-size:clamp(1rem,2.6vw,1.3rem);
+    color:var(--gold);
+    text-align:center;
+    opacity:0;
+    transition:opacity 1.4s ease;
+  }
+  .respiro-chiusura.mostra{opacity:0.95;}
+
+  @media (max-width:700px){
+    .transizione{min-height:150vh;padding:4rem 1.2rem;}
+    .costellazione-nomi{height:46vh;}
   }
 
   /* ---------- LETTERA ---------- */
@@ -395,6 +485,94 @@
     color:var(--blue-soft);
   }
 
+  /* ---------- ACCENDI LA TUA STELLA ---------- */
+  #accendi-stella{
+    max-width:640px;
+    text-align:center;
+  }
+  .stella-form{
+    display:flex;
+    gap:0.7rem;
+    justify-content:center;
+    flex-wrap:wrap;
+    margin-bottom:3rem;
+  }
+  .stella-form input{
+    flex:1 1 260px;
+    max-width:320px;
+    background:rgba(255,255,255,0.04);
+    border:1px solid rgba(170,184,232,0.3);
+    border-radius:999px;
+    padding:0.85rem 1.4rem;
+    font-family:'Quicksand',sans-serif;
+    font-size:0.95rem;
+    color:var(--cream);
+    outline:none;
+    transition:border-color 0.2s ease, background 0.2s ease;
+  }
+  .stella-form input::placeholder{color:var(--blue-soft);}
+  .stella-form input:focus{
+    border-color:var(--gold);
+    background:rgba(255,255,255,0.07);
+  }
+  .stella-form button{
+    background:var(--gold);
+    color:var(--navy-deep);
+    border:none;
+    padding:0.85rem 1.8rem;
+    border-radius:999px;
+    font-family:'Quicksand',sans-serif;
+    font-weight:700;
+    font-size:0.92rem;
+    cursor:pointer;
+    transition:transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .stella-form button:hover{transform:scale(1.04);}
+  .stella-form button:active{transform:scale(0.97);}
+
+  .cielo-stelle{
+    display:flex;
+    flex-wrap:wrap;
+    gap:0.9rem 1.1rem;
+    justify-content:center;
+    min-height:2rem;
+  }
+  .cielo-stelle .stella-accesa{
+    display:inline-flex;
+    align-items:center;
+    gap:0.5rem;
+    background:rgba(255,255,255,0.03);
+    border:1px solid rgba(242,196,109,0.25);
+    border-radius:999px;
+    padding:0.5rem 1rem;
+    font-family:'Fraunces',serif;
+    font-style:italic;
+    font-size:0.92rem;
+    color:var(--cream);
+    opacity:0;
+    transform:translateY(10px) scale(0.9);
+    animation:accendi 0.9s ease forwards;
+  }
+  .cielo-stelle .stella-accesa .puntino{
+    width:6px;height:6px;border-radius:50%;
+    background:var(--gold);
+    box-shadow:0 0 8px 2px rgba(242,196,109,0.8);
+    flex-shrink:0;
+    animation:tremola 2.6s ease-in-out infinite;
+  }
+  @keyframes accendi{
+    0%{opacity:0;transform:translateY(10px) scale(0.85);}
+    60%{opacity:1;transform:translateY(-2px) scale(1.05);}
+    100%{opacity:1;transform:translateY(0) scale(1);}
+  }
+  .cielo-vuoto{
+    color:var(--blue-soft);
+    font-size:0.85rem;
+    font-style:italic;
+    font-family:'Fraunces',serif;
+    opacity:0.7;
+  }
+
   /* footer */
   footer{
     position:relative;
@@ -415,6 +593,8 @@
   @media (prefers-reduced-motion: reduce){
     .scroll-hint{animation:none;}
     .tile img{transition:none;}
+    .respiro-testo .parola{transition:none;opacity:1;filter:none;transform:none;}
+    .stella-nome{transition:none;opacity:1;transform:none;}
   }
 
   /* ---------- RESPONSIVE MOBILE ---------- */
@@ -434,4 +614,49 @@
     .lettera{padding:1.6rem 1.3rem;}
     .lettera p{font-size:1rem;line-height:1.75;}
     .foto-squadra .frame{aspect-ratio:4/5;}
+    .stella-form{flex-direction:column;align-items:center;}
+    .stella-form input{max-width:100%;width:100%;}
   }
+
+  /* =======================================================
+   ANIMAZIONE COMPARSA GALLERIA
+======================================================= */
+
+.tile{
+    opacity:0;
+    transform:translateY(45px) scale(.97);
+    transition:
+        opacity .8s ease,
+        transform .8s cubic-bezier(.2,.8,.2,1);
+}
+
+.tile.visible{
+    opacity:1;
+    transform:translateY(0) scale(1);
+}
+
+.hero-date{
+    margin-top:1.5rem;
+    color:var(--gold);
+    font-size:.9rem;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    opacity:.9;
+}
+
+/* =======================================================
+   FINALE
+======================================================= */
+
+.footer-fade{
+    position:relative;
+    background:
+        linear-gradient(
+            180deg,
+            transparent 0%,
+            #080b1c 70%,
+            #000 100%
+        );
+
+    padding-bottom:6rem;
+}
